@@ -14,19 +14,29 @@ if __name__ == "__main__":
     maxcor is the parameter inside LBFGS. It is the maximum number of variable metric corrections used to define the limited memory matrix. (The limited memory BFGS method does not store the full hessian but uses this many terms in an approximation to it.)
     This function will output a global mimimum point of polynomial on [-1,1]^{D} and it's relative error subject to the real minimum value
     """
-    D = 2
+    D = 3
     d = 4
     L = 6
-    rho = 10
-    target_value = -1.3911457
-    target_relative_error = 1e-5
-    gtol = 1e-7
-    ftol = 1e-7
+    gamma = 100
+    target_value = -1.3911
+    target_relative_error = 1e-4
+    gtol = 1e-6
+    ftol = 1e-6
     maxcor = 40
 
-    #polynomial input
+    #input the polynomial here
     x = sp.symbols(f'x1:{D+1}')
     polynomial = (1 / D) * sum(8 * x_i**4 - 8 * x_i**2 + 1 for x_i in x) + (sum(x) / D) ** 3
-    x_final,relative_error = solver(D,d,L,rho,target_value,target_relative_error,gtol,ftol,maxcor,x,polynomial)
-
+    # # 构造矩阵 xx^T
+    # xxT = sp.Matrix(x) * sp.Matrix(x).T
+    # # # # 构造全 1 的矩阵 J，乘以 1/2
+    # J = sp.Matrix([[1/2] * D] * D)
+    # # # # 计算目标函数，即 Frobenius 范数的平方
+    # objective_matrix = (xxT - J).applyfunc(lambda x: x**2)
+    # # polynomial = sum(xi**2 for xi in x)
+    # polynomial = sum(objective_matrix)
+    # penalty_term = sum((xi - 1/sp.sqrt(2))**2 for xi in x)
+    # polynomial +=penalty_term
+    # print(polynomial)
+    x_final,relative_error = solver(D,d,L,gamma,target_value,target_relative_error,gtol,ftol,maxcor,x,polynomial)
     print(x_final,relative_error)

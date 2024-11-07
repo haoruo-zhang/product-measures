@@ -91,7 +91,7 @@ def generate_M_d(x_mu_D_L_list,d,D,L):
     return jnp.array(x_M_D_L_list)
 
 
-def Augmented_Lagrangian(x_input,d,D,L,orders_list,coefficients_list,Lagrangian_coefficient,rho):
+def Augmented_Lagrangian(x_input,d,D,L,orders_list,coefficients_list,Lagrangian_coefficient,gamma):
     """
     x is the flattend x
     D is the number of variables in polynomial
@@ -99,7 +99,7 @@ def Augmented_Lagrangian(x_input,d,D,L,orders_list,coefficients_list,Lagrangian_
     orders_list is the list of different terms(e.g. x1^2*x2^2) in polynomials
     coefficients_list is the list of coefficients of the above terms
     Lagrangian_coefficient is Lagrangian coefficient
-    rho is the penalty term 
+    gamma is the penalty term 
 
     """
     #Before we start, we need to reshape the x input back to the original format, which is the matrix form
@@ -119,10 +119,10 @@ def Augmented_Lagrangian(x_input,d,D,L,orders_list,coefficients_list,Lagrangian_
     sum_result += term_2(D,L,x_M_D_L_list,x_mu_D_L_list,x_R_L_list,Lagrangian_coefficient)
     
     # #Third term
-    sum_result += rho/2*term_3(D,L,x_M_D_L_list,x_mu_D_L_list,x_R_L_list)
+    sum_result += gamma/2*term_3(D,L,x_M_D_L_list,x_mu_D_L_list,x_R_L_list)
     return sum_result
 
-def Augmented_Lagrangian_without_objective(x_input,d,D,L,Lagrangian_coefficient,rho):
+def Augmented_Lagrangian_without_objective(x_input,d,D,L,Lagrangian_coefficient,gamma):
     """
     x is the flattend x
     D is the number of variables in polynomial
@@ -130,7 +130,7 @@ def Augmented_Lagrangian_without_objective(x_input,d,D,L,Lagrangian_coefficient,
     orders_list is the list of different terms(e.g. x1^2*x2^2) in polynomials
     coefficients_list is the list of coefficients of the above terms
     Lagrangian_coefficient is Lagrangian coefficient
-    rho is the penalty term 
+    gamma is the penalty term 
 
     """
     #Before we start, we need to reshape the x input back to the original format, which is the matrix form
@@ -146,7 +146,7 @@ def Augmented_Lagrangian_without_objective(x_input,d,D,L,Lagrangian_coefficient,
     sum_result += term_2(D,L,x_M_D_L_list,x_mu_D_L_list,x_R_L_list,Lagrangian_coefficient)
     
     # #Third term
-    sum_result += rho/2*term_3(D,L,x_M_D_L_list,x_mu_D_L_list,x_R_L_list)
+    sum_result += gamma/2*term_3(D,L,x_M_D_L_list,x_mu_D_L_list,x_R_L_list)
     return sum_result
 
 #This is the sum of the polynomials
@@ -172,14 +172,15 @@ def term_2(D,L,x_M_D_L_list,x_mu_D_L_list,x_R_L_list,Lagrangian_coefficient):
             sum += jaxnp.sum(Lagrangian_coefficient[0][i][l]*(x_M_D_L_list[i][l]-jaxnp.dot(x_R_L_list[i][l],x_R_L_list[i][l].T)))
     
 
-    # mu_(1,0)^l>=0
-    for l in range(L):
-        sum += Lagrangian_coefficient[1][0][l]*jaxnp.maximum(-x_M_D_L_list[0][l][0,0],0)
+    # # mu_(1,0)^l>=0
+    # for l in range(L):
+    #     sum += Lagrangian_coefficient[1][0][l]*jaxnp.maximum(-x_M_D_L_list[0][l][0,0],0)
     
     # mu_(i,0)^l - 1 = 0
-    for i in range(D-1):
+    for i in range(D):
         for l in range(L):
-            sum += Lagrangian_coefficient[1][i+1][l]*(x_M_D_L_list[i+1][l][0,0]-1)
+            # sum += Lagrangian_coefficient[1][i+1][l]*(x_M_D_L_list[i+1][l][0,0]-1)
+            sum += Lagrangian_coefficient[1][i][l]*(x_M_D_L_list[i][l][0,0]-1)
     
     #8 B.2.1.
     for i in range(D):
@@ -196,31 +197,32 @@ def term_3(D,L,x_M_D_L_list,x_mu_D_L_list,x_R_L_list):
         for l in range(L):
             sum += jaxnp.sum(jaxnp.square((x_M_D_L_list[i][l]-jaxnp.dot(x_R_L_list[i][l],x_R_L_list[i][l].T))))
        
-    # mu_(1,0)^l>=0 
-    # here we define the penalty term as max(0, -g)**2 since we need to let it >=0 
-    for l in range(L):
-        sum += max(0,-x_M_D_L_list[0][l][0,0])**2
+    # # mu_(1,0)^l>=0 
+    # # here we define the penalty term as max(0, -g)**2 since we need to let it >=0 
+    # for l in range(L):
+    #     sum += max(0,-x_M_D_L_list[0][l][0,0])**2
     
     # mu_(i,0)^l - 1 = 0
-    for i in range(D-1):
+    for i in range(D):
         for l in range(L):
-            sum += (x_M_D_L_list[i+1][l][0,0]-1)**2
+            # sum += (x_M_D_L_list[i+1][l][0,0]-1)**2
+            sum += (x_M_D_L_list[i][l][0,0]-1)**2
 
        
     # B.2.1.
     for i in range(D):
         for l in range(L):
-                sum+= jaxnp.sum(jaxnp.square(jaxnp.maximum(0,-x_mu_D_L_list[i][l]-1)+jaxnp.maximum(0,x_mu_D_L_list[i][l]-1)))
+            sum+= jaxnp.sum(jaxnp.square(jaxnp.maximum(0,-x_mu_D_L_list[i][l]-1)+jaxnp.maximum(0,x_mu_D_L_list[i][l]-1)))
     
     return sum
 
-def update_Lagrangian_coefficients(d,D,L,x_input,Lagrangian_coefficient,rho):
+def update_Lagrangian_coefficients(d,D,L,x_input,Lagrangian_coefficient,gamma):
     """
     D is the number of variables in polynomial
     L is the number of measures
     x_input is the flattend x
     Lagrangian_coefficient is Lagrangian coefficient
-    rho is the penalty term 
+    gamma is the penalty term 
 
     """
 
@@ -231,21 +233,22 @@ def update_Lagrangian_coefficients(d,D,L,x_input,Lagrangian_coefficient,rho):
     # 1.Md(mu_0^(l)) - R_0^l R_0^l.T = 0
     for i in range(D):
         for l in range(L):
-            Lagrangian_coefficient[0][i][l] += rho*(x_M_D_L_list[i][l]-np.dot(x_R_L_list[i][l],x_R_L_list[i][l].T))
+            Lagrangian_coefficient[0][i][l] += gamma*(x_M_D_L_list[i][l]-np.dot(x_R_L_list[i][l],x_R_L_list[i][l].T))
     
-    # 5. mu_(1,0)^l>=0
-    for l in range(L):
-        Lagrangian_coefficient[1][0][l] += rho*max(-x_M_D_L_list[0][l][0,0],0)
+    # # 5. mu_(1,0)^l>=0
+    # for l in range(L):
+    #     Lagrangian_coefficient[1][0][l] += gamma*max(-x_M_D_L_list[0][l][0,0],0)
     
     # 6. mu_(i,0)^l - 1 = 0
-    for i in range(D-1):
+    for i in range(D):
         for l in range(L):
-            Lagrangian_coefficient[1][i+1][l] += rho*(x_M_D_L_list[i+1][l][0,0]-1)
+            # Lagrangian_coefficient[1][i+1][l] += gamma*(x_M_D_L_list[i+1][l][0,0]-1)
+            Lagrangian_coefficient[1][i][l] += gamma*(x_M_D_L_list[i][l][0,0]-1)
 
     #8 B.2.1.
     for i in range(D):
         for l in range(L):
-            Lagrangian_coefficient[2][i][l] += rho*(np.maximum(0,-x_mu_D_L_list[i][l]-1)+np.maximum(0,x_mu_D_L_list[i][l]-1))
+            Lagrangian_coefficient[2][i][l] += gamma*(np.maximum(0,-x_mu_D_L_list[i][l]-1)+np.maximum(0,x_mu_D_L_list[i][l]-1))
 
     return Lagrangian_coefficient
 
@@ -304,7 +307,7 @@ def generate_lag(D,d,L):
     return Lagrangian_coefficient
 
 
-def update_everything(x_input,rho,Lagrangian_coefficient,v,d,D,L):
+def update_everything(x_input,gamma,Lagrangian_coefficient,v,d,D,L):
     """
     This is the update of lagrangian coefficient and the penalty coefficient
     Using the method in <A nonlinear programming algorithm for solving semidefinite programs via low-rank factorization> page 337-338
@@ -314,18 +317,18 @@ def update_everything(x_input,rho,Lagrangian_coefficient,v,d,D,L):
     v_k = term_3(D,L,x_M_D_L_list,x_mu_D_L_list,x_R_L_list)
 
     eta = 1/4
-    gamma = 10
+    rho = 10
 
     if v_k<eta*v:
-        Lagrangian_coefficient = update_Lagrangian_coefficients(d,D,L,x_input,Lagrangian_coefficient,rho)
+        Lagrangian_coefficient = update_Lagrangian_coefficients(d,D,L,x_input,Lagrangian_coefficient,gamma)
         v_k_1 = v_k
-        print("keep rho, update Lagrangian")
+        print("keep gamma, update Lagrangian")
     else:
         Lagrangian_coefficient = Lagrangian_coefficient
-        rho = rho*gamma
+        gamma = gamma*rho
         v_k_1 = v
-        print("keep Lagrangian, update rho")
-    return Lagrangian_coefficient,rho,v_k_1
+        print("keep Lagrangian, update gamma")
+    return Lagrangian_coefficient,gamma,v_k_1
 
     
 def jac_term1_new(x_input, d, D, L, orders_list, coefficients_list):
@@ -338,10 +341,11 @@ def jac_term1_new(x_input, d, D, L, orders_list, coefficients_list):
     coefficients_list = np.array(coefficients_list)
     # Precompute a mask for orders_list to avoid repeated condition checks
     orders_mask = np.array([[o[x] for x in range(D)] for o in orders_list])
-    index = 0
+    index = -1
     for x in range(D):
         for l in range(L):
             for i in range(2 * d + 1):
+                index += 1
                 if i <= d:
                     # Find terms where orders_list[o][x] == i in a vectorized way
                     relevant_terms = np.where(orders_mask[:, x] == i)[0]
@@ -359,19 +363,19 @@ def jac_term1_new(x_input, d, D, L, orders_list, coefficients_list):
                             moments_product_list *= x_mu_D_L_list[p][l][selected_orders]
                     jacobian_matrix_sum = np.sum(coefficients_list[relevant_terms] * moments_product_list)
                     jacobian_list[index] = jacobian_matrix_sum
-                index += 1
+                
     
     jacobian_final[:len(jacobian_list)] = jacobian_list
     return jacobian_final
 
 
 
-def solver(D,d,L,rho,target_value,target_relative_error,gtol,ftol,maxcor,x,polynomial):
+def solver(D,d,L,gamma,target_value,target_relative_error,gtol,ftol,maxcor,x,polynomial):
     """
     D is the number of dimensions
     d is the highest order in polynomial
     L is the number of measures
-    rho is the value of penalty term gamma
+    gamma is the value of penalty term gamma
     target_value is the real minimum of the polynomial on [-1,1]^{D}
     target_relative_error is the stopping criterion for the updating of lagrangian coefficient
     gtol is the Stopping criterion (relative gradient) inside LBFGS, The iteration will stop when max{|proj g_i | i = 1, ..., n} <= gtol where proj g_i is the i-th component of the projected gradient.
@@ -391,7 +395,7 @@ def solver(D,d,L,rho,target_value,target_relative_error,gtol,ftol,maxcor,x,polyn
     x_mu_D_L_list,x_R_L_list = restore_matrices(s=x_input,d=d,D=D,L=L)
     x_M_D_L_list = generate_M_d(x_mu_D_L_list,d,D,L)
 
-    # term_3 is the sum of the penalty term, but without the rho*, just the sum
+    # term_3 is the sum of the penalty term, but without the gamma*, just the sum
     v_k = term_3(D,L,x_M_D_L_list,x_mu_D_L_list,x_R_L_list)
 
     while True:
@@ -399,11 +403,11 @@ def solver(D,d,L,rho,target_value,target_relative_error,gtol,ftol,maxcor,x,polyn
         # the function of whole augumented lagrangian
         aug_lagrangian_partial = partial(Augmented_Lagrangian, d=d, D=D, L=L, orders_list=orders_list,
                                     coefficients_list=coefficients_list,
-                                    Lagrangian_coefficient=Lagrangian_coefficient, rho=rho)
+                                    Lagrangian_coefficient=Lagrangian_coefficient, gamma=gamma)
         
         # the function of lagrangian term + penalty term
         aug_lagrangian_without_obejective_partial = partial(Augmented_Lagrangian_without_objective, d=d, D=D, L=L,
-                                    Lagrangian_coefficient=Lagrangian_coefficient, rho=rho)
+                                    Lagrangian_coefficient=Lagrangian_coefficient, gamma=gamma)
         
         # the gradient of the objective term
         aug_lagrangian_objective_gradient = partial(jac_term1_new,d=d,D=D,L=L,orders_list=orders_list,coefficients_list=coefficients_list)
@@ -437,7 +441,7 @@ def solver(D,d,L,rho,target_value,target_relative_error,gtol,ftol,maxcor,x,polyn
         x_input = result.x
         # We use the update rule in the Samuel Burer paper
 
-        Lagrangian_coefficient,rho,v_k = update_everything(x_input,rho,Lagrangian_coefficient,v_k,d,D,L)
+        Lagrangian_coefficient,gamma,v_k = update_everything(x_input,gamma,Lagrangian_coefficient,v_k,d,D,L)
 
         # Calculate the x_min
         x_mu_D_L_list,_= restore_matrices(x_input,d,D,L)
@@ -448,20 +452,23 @@ def solver(D,d,L,rho,target_value,target_relative_error,gtol,ftol,maxcor,x,polyn
             for i in range(D):
                 moment_product *= x_M_D_L_list[i][l][0,0]
             l_product_list.append(moment_product)
-
         max_index = l_product_list.index(max(l_product_list))
         x_final= np.array([x_mu_D_L_list[i][max_index][1]/l_product_list[max_index] for i in range(D)])
         value_final = polynomial(*x_final)
-        relative_error = abs((value_final-target_value)/ target_value)
+        relative_error = abs((value_final-target_value)/ (target_value+1e-10))
         print("current x_min is {}".format(x_final))
         print("current relative error regarding polynomial value is {}".format(relative_error))
+        # print("current relative error regarding polynomial value is {}".format(value_final))
+
 
         # Some stopping conditions
         if relative_error<target_relative_error:
+        # if value_final<target_relative_error:
             break
         if iteration>100:
             break
-        if rho>1e8:
+        if gamma>1e8:
             break
 
-    return x_final,relative_error
+    # return x_final,relative_error
+    return x_final,value_final
